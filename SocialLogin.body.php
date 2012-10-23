@@ -21,10 +21,24 @@ function SLgetContents( $url, $data = false ) {
 class SocialLogin extends SpecialPage {
 	function __construct( ) {
 		global $wgHooks;
+		$this->loginForm = new LoginForm;
 		parent::__construct('SocialLogin');
 		$wgHooks['UserLoadAfterLoadFromSession'][] = $this;
 		wfLoadExtensionMessages('SocialLogin');
 	}
+	
+	// Replace login / register href with Special:SocialLogin
+	static function onPersonalUrls( &$personal_urls ) {
+		global $wgSocialLoginOverrideUrls, $wgOut, $wgRequest;
+		if ($wgSocialLoginOverrideUrls) {
+			if (isset($personal_urls['anonlogin'])) {
+				$personal_urls['anonlogin']['href'] = SpecialPage::getTitleFor('SocialLogin')->getLocalURL() . '?returnto=' . ($wgRequest->getText('returnto')?$wgRequest->getText('returnto'):$wgOut->getTitle());
+			}
+		}
+		return true;
+	}
+	
+	var $loginForm;
 
 	static function getContents( $url, $data = false ) {
 	 	$ch = curl_init();
@@ -172,8 +186,7 @@ class SocialLogin extends SpecialPage {
 					$user->loadFromId();
 					$user->setCookies();
 					$user->saveSettings();
-					wfRunHooks('UserLoginComplete', array(&$user, $this));
-					$wgOut->addHTML(wfMsg('sl-login-success'));
+					$this->loginForm->successfulLogin();
 				}
 				break;
 			case "signup":
@@ -205,8 +218,7 @@ class SocialLogin extends SpecialPage {
 					$user->loadFromId();
 					$user->setCookies();
 					$user->saveSettings();
-					wfRunHooks('UserLoginComplete', array(&$user, $this));
-					$wgOut->addHTML(wfMsg('sl-login-success'));
+					$this->loginForm->successfulLogin();
 				}
 				break;
 			case "login":
@@ -223,8 +235,7 @@ class SocialLogin extends SpecialPage {
 					$user->loadFromId();
 					$user->setCookies();
 					$user->saveSettings();
-					wfRunHooks('UserLoginComplete', array(&$user, $this));
-					$wgOut->addHTML(wfMsg('sl-login-success'));
+					$this->loginForm->successfulLogin();
 				} else {
 					if ($user->isLoggedIn()) {
 						$dbr = wfGetDB(DB_MASTER);
@@ -282,7 +293,7 @@ class SocialLogin extends SpecialPage {
 							"profile" => $auth["profile"],
 							"full_name" => $auth["realname"]
 						));
-						$wgOut->addHTML(wfMsg('sl-login-success'));
+						$this->loginForm->successfulLogin();
 					}
 				}
 				break;
@@ -309,13 +320,13 @@ class SocialLogin extends SpecialPage {
 						$user->loadFromId();
 						$user->setCookies();
 						$user->saveSettings();
-						wfRunHooks('UserLoginComplete', array(&$user, $this));
 						$dbr = wfGetDB(DB_MASTER);
 						$res = $dbr->insert('sociallogin', array(
 							"user_id" => $newUser->getId(),
 							"profile" => $auth["profile"],
 							"full_name" => $auth["realname"]
 						));
+						wfRunHooks('UserLoginComplete', array(&$user, $this));
 						$wgOut->addHTML(wfMsg('sl-account-connected', $auth["realname"], $wgSocialLoginServices[$service]));
 					}
 				}
@@ -340,6 +351,7 @@ class SocialLogin extends SpecialPage {
 
 	function execute( $par ) {
 		global $wgRequest, $wgOut, $wgUser;
+		$this->loginForm->load();
 		$wgOut->addHeadItem('Zocial Styles', "<link type='text/css' href='/extensions/SocialLogin/css/style.css' rel='stylesheet' />");
 		$this->setHeaders();
 	}

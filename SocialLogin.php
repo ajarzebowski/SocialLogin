@@ -5,7 +5,7 @@ $wgExtensionCredits['specialpage'][] = array(
         'author' => 'Luft-on',
         'url' => 'http://www.mediawiki.org/wiki/Extension:SocialLogin',
         'descriptionmsg' => 'sl-desc',
-        'version' => '0.9.5',
+        'version' => '0.9.8',
 );
  
 $dir = dirname(__FILE__) . '/';
@@ -17,9 +17,10 @@ foreach ($wgSocialLoginServices as $key => $value) {
 	$name = str_replace('.', '_', $key);
 	$wgAutoloadClasses[$name] = $dir . "/plugins/$key.php";
 }
+$wgHooks['PersonalUrls'][] = 'SocialLogin::onPersonalUrls';
 $wgExtensionMessagesFiles['sociallogin'] = $dir . 'SocialLogin.i18n.php';
 $wgExtensionAliasesFiles['sociallogin'] = $dir . 'SocialLogin.alias.php';
-$wgSpecialPages['sociallogin'] = 'SocialLogin'; # Сообщите MediaWiki о Вашей новой спецстранице.
+$wgSpecialPages['sociallogin'] = 'SocialLogin';
 
 # Schema updates for update.php
 $wgHooks['LoadExtensionSchemaUpdates'][] = 'socialLoginUpdate';
