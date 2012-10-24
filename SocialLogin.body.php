@@ -1,8 +1,18 @@
 <?php
+/**
+ * Interface to implement SocialLogin plugins
+ **/
 interface SocialLoginPlugin {
 	public static function login( $code );
 	public static function check( $id );
 	public static function loginUrl( );
+}
+
+// If session is no started yet then we can't correctly map Login / Register link, so start the session
+global $wgSessionStarted, $wgOut, $wgRequest;
+if (!$wgSessionStarted) {
+	wfSetupSession();
+	$wgOut->redirect($wgRequest->getFullRequestURL());
 }
 
 function SLgetContents( $url, $data = false ) {
@@ -18,7 +28,30 @@ function SLgetContents( $url, $data = false ) {
 	return $output;
 }
 
+function SLgenerateName( $names ) {
+	$possibles = array();
+	foreach ($names as $name) {
+		$name = SocialLogin::processName($name);
+		if (!$name) continue;
+		$possibles[] = $name;
+		if (!SocialLogin::userExist($name)) return $name;
+	}
+	foreach ($possibles as $possible) {
+		$i = 1;
+		while(SocialLogin::userExist($possible . "_$i")) $i++;
+		return $possible . "_$i";
+	}
+	
+	$dbr = wfGetDB(DB_MASTER);
+	$res = $dbr->selectRow('sociallogin', array('MAX(id) as max'), array(), __METHOD__);
+	$maxId = $res->max?$res->max+1:1;
+	$result = "user_$maxId";
+	return $result;
+}
+
 class SocialLogin extends SpecialPage {
+	var $loginForm;
+
 	function __construct( ) {
 		global $wgHooks;
 		$this->loginForm = new LoginForm;
@@ -26,19 +59,19 @@ class SocialLogin extends SpecialPage {
 		$wgHooks['UserLoadAfterLoadFromSession'][] = $this;
 		wfLoadExtensionMessages('SocialLogin');
 	}
-	
+
 	// Replace login / register href with Special:SocialLogin
 	static function onPersonalUrls( &$personal_urls ) {
 		global $wgSocialLoginOverrideUrls, $wgOut, $wgRequest;
+		// If we want to map Login / Register link to Special:SocialLogin
 		if ($wgSocialLoginOverrideUrls) {
+			// Replace personal_url with Special:SocialLogin
 			if (isset($personal_urls['anonlogin'])) {
 				$personal_urls['anonlogin']['href'] = SpecialPage::getTitleFor('SocialLogin')->getLocalURL() . '?returnto=' . ($wgRequest->getText('returnto')?$wgRequest->getText('returnto'):$wgOut->getTitle());
 			}
 		}
 		return true;
 	}
-	
-	var $loginForm;
 
 	static function getContents( $url, $data = false ) {
 	 	$ch = curl_init();
@@ -94,33 +127,9 @@ class SocialLogin extends SpecialPage {
 		$res = $dbr->selectRow('user', array('user_id'), array('user_email' => $email), __METHOD__);
 		return isset($res->user_id) && $res->user_id;
 	}
-	
-	static function generateName( $names ) {
-		$possibles = array();
-		foreach ($names as $name) {
-			$name = SocialLogin::processName($name);
-			if (!$name) continue;
-			$possibles[] = $name;
-			if (!SocialLogin::userExist($name)) return $name;
-		}
-		foreach ($possibles as $possible) {
-			$i = 1;
-			while(SocialLogin::userExist($possible . "_$i")) $i++;
-			return $possible . "_$i";
-		}
-		
-		$dbr = wfGetDB(DB_MASTER);
-		$res = $dbr->selectRow('sociallogin', array('MAX(id) as max'), array(), __METHOD__);
-		$maxId = $res->max?$res->max+1:1;
-		$result = "user_$maxId";
-		return $result;
-	}
 
 	function onUserLoadAfterLoadFromSession( $user ) {
 		global $wgRequest, $wgOut, $wgContLang, $wgSocialLoginServices, $wgSocialLoginAddForms, $wgSessionStarted;
-		if (!$wgSessionStarted) {
-			wfSetupSession();
-		}
 		$action = $wgRequest->getText('action', 'auth');
 		switch ($action) {
 			case "auth":
@@ -151,19 +160,25 @@ class SocialLogin extends SpecialPage {
 				} else {
 					$wgOut->addHTML("</table>");
 				}
-				$wgOut->addHeadItem('Authorization', "<script type='text/javascript' src='/extensions/SocialLogin/auth.js'></script>");
+				$wgOut->addHeadItem('Authorization', "<script type='text/javascript'>
+					function unlink(profile) {
+						$.ajax({
+							url: '/Special:SocialLogin',
+							data: {action: 'unlink', profile: profile},
+							success: function(response) {
+								if (/.*yes.*/.test(response)) $('#' + profile.replace('@', '_').replace('.', '_')).remove();
+								else alert('Не удалось отсоединить профиль социальной сети.');
+							}
+						});
+					}
+				</script>");
 				$scripts = "$(function() {";
 				foreach ($wgSocialLoginServices as $key => $name) {
 					$s = explode('.', $key);
 					$s = $s[0];
 					$scripts .= "
 						$('.$s').click(function() {
-							login('" . call_user_func(array(str_replace(".", "_", $key), "loginUrl")) . "', function(code) {
-								tryLogin({service: '$key', code: code}, function(response) {
-									if (response == 'yes') document.location.href = '/';
-									else hacking();
-								});
-							});
+							document.location.href = '" . call_user_func(array(str_replace(".", "_", $key), "loginUrl")) . "';
 						});";
 				}
 				$scripts .= "});";
@@ -201,7 +216,7 @@ class SocialLogin extends SpecialPage {
 				if (SocialLogin::userExist($name)) $error .= "<li>" . wfMsg('sl-user-exist', $name) . "</li>";
 				if (!User::isValidEmailAddr($email)) $error .= "<li>" . wfMsg('sl-invalid-email', $email) . "</li>";
 				if ($this->emailExist($email)) $error .= "<li>" . wfMsg('sl-email-exist', $name) . "</li>";
-				//Note: Добавить проверку на валидность пароля
+				//Note: Add password validation
 				if (!$pass1) $error .= "<li>" . wfMsg('sl-invalid-password') . "</li>";
 				if ($pass1 != $pass2) $error .= "<li>" . wfMsg('sl-passwords-not-equal') . "</li>";
 				if ($error) {
@@ -222,11 +237,10 @@ class SocialLogin extends SpecialPage {
 				}
 				break;
 			case "login":
-				$profile = $wgRequest->getText('profile');
 				$service = $wgRequest->getText('service');
 				$code = $wgRequest->getText('code');
 				$auth = call_user_func(array(str_replace(".", "_", $service), "login"), $code);
-				if (!$auth) return true;
+				if (!$auth) $wgOut->addHTML(wfMsg('sl-hacking'));
 				$dbr = wfGetDB(DB_MASTER);
 				$res = $dbr->selectRow('sociallogin', array('user_id'), array('profile' => $auth['profile']), __METHOD__);
 				$user_id = $res?($res->user_id?$res->user_id:false):false;
@@ -268,7 +282,7 @@ class SocialLogin extends SpecialPage {
 					if (SocialLogin::userExist($name)) $error .= "<li>" . wfMsg('sl-user-exist', $name) . "</li>";
 					if (!User::isValidEmailAddr($email)) $error .= "<li>" . wfMsg('sl-invalid-email', $email) . "</li>";
 					if ($this->emailExist($email)) $error .= "<li>" . wfMsg('sl-email-exist', $name) . "</li>";
-					//Note: Добавить проверку на валидность пароля
+					//Note: Add password validation
 					if (!$pass1) $error .= "<li>" . wfMsg('sl-invalid-password') . "</li>";
 					if ($pass1 != $pass2) $error .= "<li>" . wfMsg('sl-passwords-not-equal') . "</li>";
 					if ($error) {
@@ -352,7 +366,7 @@ class SocialLogin extends SpecialPage {
 	function execute( $par ) {
 		global $wgRequest, $wgOut, $wgUser;
 		$this->loginForm->load();
-		$wgOut->addHeadItem('Zocial Styles', "<link type='text/css' href='/extensions/SocialLogin/css/style.css' rel='stylesheet' />");
+		$wgOut->addHeadItem('SocialLogin buttons styles', "<link type='text/css' href='/extensions/SocialLogin/css/style.css' rel='stylesheet' />");
 		$this->setHeaders();
 	}
 }

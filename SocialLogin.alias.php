@@ -5,7 +5,7 @@ $aliases['en'] = array(
     'SocialLogin' => array('SocialLogin'),
 );
  
-/** Russian */
+/* Russian */
 $aliases['ru'] = array(
         'SocialLogin' => array('Социальная_авторизация'),
 );

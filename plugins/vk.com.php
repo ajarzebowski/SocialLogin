@@ -2,8 +2,7 @@
 class vk_com implements SocialLoginPlugin {
 	public static function login( $code ) {
 		global $wgVkSecret, $wgVkAppId;
-		$host = $_SERVER["SERVER_NAME"];
-		$r = SLgetContents("https://oauth.vk.com/access_token?redirect_uri=http://$host/Special:SocialLogin?service=vk.com&client_id=$wgVkAppId&client_secret=$wgVkSecret&code=$code");
+		$r = SLgetContents("https://oauth.vk.com/access_token?client_id=$wgVkAppId&client_secret=$wgVkSecret&code=$code&redirect_uri=" . urlencode(SpecialPage::getTitleFor('SocialLogin')->getCanonicalURL() . "?action=login&service=vk.com"));
 		$response = json_decode($r);
 		if (!isset($response->access_token)) return false;
 		$access_token = $response->access_token;
@@ -11,8 +10,8 @@ class vk_com implements SocialLoginPlugin {
 		$r = SLgetContents("https://api.vk.com/method/users.get?uids=$id&fields=first_name,last_name,nickname,sex,bday,screen_name&access_token=$access_token");
 		$response = json_decode($r);
 		$response = $response->response[0];
-		$name = SocialLogin::generateName(array($response->screen_name, $response->nickname, $response->last_name . " " . $response->first_name));
-        $_SESSION['sl_token'] = $access_token;
+		$name = SLgenerateName(array($response->screen_name, $response->nickname, $response->last_name . " " . $response->first_name));
+		$_SESSION['sl_token'] = $access_token;
 		return array(
 			"id" => $id,
 			"service" => "vk.com",
@@ -24,10 +23,9 @@ class vk_com implements SocialLoginPlugin {
 	}
 
 	public static function check( $id ) {
-	    $access_token = $_SESSION['sl_token'];  
+	    $access_token = $_SESSION['sl_token'];
 		$r = SLgetContents("https://api.vk.com/method/getUserInfo?access_token=$access_token");
 		$response = json_decode($r);
-		//$response = $response->response;
 		if (!($response = $response->response) || !isset($response->user_id) || $response->user_id != $id) return false;
 		$r = SLgetContents("https://api.vk.com/method/users.get?uid=" . $response->user_id . "&fields=first_name,last_name&access_token=$access_token");
 		$response = json_decode($r);
@@ -43,7 +41,6 @@ class vk_com implements SocialLoginPlugin {
 	
 	public static function loginUrl( ) {
 		global $wgVkAppId;
-		$host = $_SERVER["SERVER_NAME"];
-		return "https://oauth.vk.com/authorize?client_id=$wgVkAppId&display=popup&redirect_uri=http://$host/Special:SocialLogin?service=vk.com&response_type=code";
+		return "https://oauth.vk.com/authorize?client_id=$wgVkAppId&display=page&response_type=code&redirect_uri=" . urlencode(SpecialPage::getTitleFor('SocialLogin')->getCanonicalURL() . "?action=login&service=vk.com");
 	}
 }

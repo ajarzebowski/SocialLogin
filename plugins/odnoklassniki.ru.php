@@ -2,9 +2,8 @@
 class odnoklassniki_ru implements SocialLoginPlugin {
 	public static function login( $code ) {
 		global $wgOdnoklassnikiSecret, $wgOdnoklassnikiAppId, $wgOdnoklassnikiPublic;
-		$host = $_SERVER["SERVER_NAME"];
 		$r = SLgetContents("http://api.odnoklassniki.ru/oauth/token.do", http_build_query(array(
-			"redirect_uri" => "http://$host/Special:SocialLogin?service=odnoklassniki.ru",
+			"redirect_uri" => SpecialPage::getTitleFor('SocialLogin')->getCanonicalURL() . "?action=login&service=odnoklassniki.ru",
 			"client_id" => $wgOdnoklassnikiAppId,
 			"client_secret" => $wgOdnoklassnikiSecret,
 			"grant_type" => "authorization_code",
@@ -17,7 +16,7 @@ class odnoklassniki_ru implements SocialLoginPlugin {
 		$r = SLgetContents("http://api.odnoklassniki.ru/fb.do?application_key=$wgOdnoklassnikiPublic&sig=$sig&client_id=$wgOdnoklassnikiAppId&method=users.getCurrentUser&access_token=$access_token");
 		$response = json_decode($r);
 		$id = $response->uid;
-		$name = SocialLogin::generateName(array($response->last_name . " " . $response->first_name));
+		$name = SLgenerateName(array($response->last_name . " " . $response->first_name));
 		$_SESSION['sl_token']=$access_token;
 		return array(
 			"id" => $id,
@@ -47,7 +46,6 @@ class odnoklassniki_ru implements SocialLoginPlugin {
 	
 	public static function loginUrl( ) {
 		global $wgOdnoklassnikiAppId;
-		$host = $_SERVER["SERVER_NAME"];
-		return "http://www.odnoklassniki.ru/oauth/authorize?client_id=$wgOdnoklassnikiAppId&display=popup&redirect_uri=http://$host/Special:SocialLogin?service=odnoklassniki.ru&response_type=code";
+		return "http://www.odnoklassniki.ru/oauth/authorize?client_id=$wgOdnoklassnikiAppId&display=page&response_type=code&redirect_uri=" . urlencode(SpecialPage::getTitleFor('SocialLogin')->getCanonicalURL() . "?action=login&service=odnoklassniki.ru");
 	}
 }

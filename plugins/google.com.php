@@ -2,9 +2,8 @@
 class google_com implements SocialLoginPlugin {
 	public static function login( $code ) {
 		global $wgGoogleSecret, $wgGoogleAppId;
-		$host = $_SERVER["SERVER_NAME"];
 		$r = SLgetContents("https://accounts.google.com/o/oauth2/token", array(
-			"redirect_uri" => "http://$host/Special:SocialLogin?service=google.com",
+			"redirect_uri" => SpecialPage::getTitleFor('SocialLogin')->getCanonicalURL() . "?action=login&service=google.com",
 			"client_id" => $wgGoogleAppId,
 			"client_secret" => $wgGoogleSecret,
 			"grant_type" => "authorization_code",
@@ -18,7 +17,7 @@ class google_com implements SocialLoginPlugin {
 		$id = $response->id;
 		$e = explode("@", $response->email);
 		$e = $e[0];
-		$name = SocialLogin::generateName(array($e, $response->family_name . " " . $response->given_name));
+		$name = SLgenerateName(array($e, $response->family_name . " " . $response->given_name));
 		$_SESSION['sl_token']=$access_token;
 		return array(
 			"id" => $id,
@@ -46,7 +45,6 @@ class google_com implements SocialLoginPlugin {
 	
 	public static function loginUrl( ) {
 		global $wgGoogleAppId;
-		$host = $_SERVER["SERVER_NAME"];
-		return "https://accounts.google.com/o/oauth2/auth?client_id=$wgGoogleAppId&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&display=popup&redirect_uri=http://$host/Special:SocialLogin?service=google.com&response_type=code";
+		return "https://accounts.google.com/o/oauth2/auth?client_id=$wgGoogleAppId&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile&display=page&response_type=code&redirect_uri=" . urlencode(SpecialPage::getTitleFor('SocialLogin')->getCanonicalURL() . "?action=login&service=google.com");
 	}
 }
