@@ -15,10 +15,10 @@ if (!$wgSessionStarted) {
 	$wgOut->redirect($wgRequest->getFullRequestURL());
 }
 
-function SLgetContents( $url, $data = false ) {
+function SLgetContents( $url, $data = false, $headers = false ) {
  	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_URL, $url);
-	curl_setopt($ch, CURLOPT_HEADER, 0);
+	curl_setopt($ch, CURLOPT_HEADER, $headers);
 	curl_setopt($ch, CURLOPT_POST, $data?1:0);
 	if ($data) curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

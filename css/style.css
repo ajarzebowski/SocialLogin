@@ -112,12 +112,14 @@
 .slbutton.odnoklassniki:before {content: "o";}
 .slbutton.twitter:before {content: "t";}
 .slbutton.vk:before {content: "v";}
+.slbutton.yandex:before {content: "y";}
 
 .slbutton.facebook {background-color: #4863ae;}
 .slbutton.google {background-color: #4e6cf7;}
 .slbutton.odnoklassniki {background-color: #ef7c09;}
 .slbutton.twitter {background-color: #46c0fb;}
 .slbutton.vk {background-color: #45688E;}
+.slbutton.yandex {background-color: #DE493F;}
 
 .slbutton.primary, .slbutton.secondary {margin: 0.1em 0; padding: 0 1em;}
 .slbutton.primary:before, .slbutton.secondary:before {display: none;}
