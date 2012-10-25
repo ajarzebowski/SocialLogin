@@ -134,32 +134,24 @@ class SocialLogin extends SpecialPage {
 		switch ($action) {
 			case "auth":
 				$wgOut->includeJQuery();
-				$wgOut->addHTML("<table style='width: 100%'><tr>");
-				$w = 100 / count($wgSocialLoginServices);
 				$accounts = array();
-				foreach ($wgSocialLoginServices as $key => $name) {
-					$accounts[$key] = '';
-					$n = explode('.', $key);
-					$wgOut->addHTML("<td style='width: $w%'><div style='width: 95%' class='slbutton " . $n[0] . "'>$name</div></td>");
-				}
-				$wgOut->addHTML("</tr>");
 				if ($user->isLoggedIn()) {
-					$wgOut->addHTML("<tr>");
-					$dbr = wfGetDB(DB_MASTER);
-					$res = $dbr->select('sociallogin', array('profile', 'full_name'), array('user_id' => $user->getId()), __METHOD__);
-					foreach ($res as $row) {
-						$s = explode('@', $row->profile);
-						$s = $s[1];
-						$accounts[$s] .= "<p id='" . preg_replace("/[@\.]/i", "_", $row->profile) . "'>" . $row->full_name . " <a href=\"javascript:unlink('" . $row->profile . "')\">(" . wfMsg('sl-unlink') . ")</a></p>";
-					}
 					foreach ($wgSocialLoginServices as $key => $name) {
-						$wgOut->addHTML("<td>" . $accounts[$key] . "</td>");
+						$accounts[$key] = array();
+						$dbr = wfGetDB(DB_MASTER);
+						$res = $dbr->select('sociallogin', array('profile', 'full_name'), array('user_id' => $user->getId()));
+						foreach ($res as $row) {
+							$service = explode('@', $row->profile);
+							$service = $service[1];
+							$accounts[$service][$row->profile] = $row->full_name;
+						}
 					}
-					$wgOut->addHTML("</tr>");
-					$wgOut->addHTML("</table>");
-				} else {
-					$wgOut->addHTML("</table>");
 				}
+				$buttonsTpl = new SocialLoginButtonsTpl();
+				$buttonsTpl->set('services', $wgSocialLoginServices);
+				$buttonsTpl->set('accounts', $accounts);
+				$buttonsTpl->setRef('user', $user);
+				$wgOut->addTemplate($buttonsTpl);
 				$wgOut->addHeadItem('Authorization', "<script type='text/javascript'>
 					function unlink(profile) {
 						$.ajax({
@@ -183,7 +175,10 @@ class SocialLogin extends SpecialPage {
 				}
 				$scripts .= "});";
 				$wgOut->addHeadItem('Login scripts', "<script type='text/javascript'>$scripts</script>");
-				if ($wgSocialLoginAddForms && !$user->isLoggedIn()) $wgOut->addHTML(wfMsg('sl-login-register'));
+				if ($wgSocialLoginAddForms && !$user->isLoggedIn()) {
+					$loginRegisterTpl = new SocialLoginLoginRegisterTpl();
+					$wgOut->addTemplate($loginRegisterTpl);
+				}
 				break;
 			case "signin":
                 sleep(1); // to prevent posible ddos
@@ -240,7 +235,7 @@ class SocialLogin extends SpecialPage {
 				$service = $wgRequest->getText('service');
 				$code = $wgRequest->getText('code');
 				$auth = call_user_func(array(str_replace(".", "_", $service), "login"), $code);
-				if (!$auth) $wgOut->addHTML(wfMsg('sl-hacking'));
+				if (!$auth) { $wgOut->addHTML(wfMsg('sl-hacking')); return true; }
 				$dbr = wfGetDB(DB_MASTER);
 				$res = $dbr->selectRow('sociallogin', array('user_id'), array('profile' => $auth['profile']), __METHOD__);
 				$user_id = $res?($res->user_id?$res->user_id:false):false;
@@ -258,9 +253,15 @@ class SocialLogin extends SpecialPage {
 							"profile" => $auth["profile"],
 							"full_name" => $auth["realname"]
 						));
-						$wgOut->addHTML(wfMsg('sl-account-connected', $auth["realname"], $wgSocialLoginServices[$service]));
+						//$wgOut->addHTML(wfMsg('sl-account-connected', $auth["realname"], $wgSocialLoginServices[$service]));
+						$_SESSION['sl_msg'] = wfMsg('sl-account-connected', $auth["realname"], $wgSocialLoginServices[$service]);
+						wfRunHooks('UserLoginComplete', array(&$user, $this));
+						$wgOut->redirect(SpecialPage::getTitleFor('SocialLogin')->getLocalUrl());
 					} else {
-						$wgOut->addHTML(wfMsg('sl-sign-forms', $auth["service"], $auth["id"], $auth["name"], $auth["realname"], $auth["email"]));
+						$signFormsTpl = new SocialLoginSignFormsTpl();
+						$signFormsTpl->set('auth', $auth);
+						$wgOut->addTemplate($signFormsTpl);
+						//$wgOut->addHTML(wfMsg('sl-sign-forms', $auth["service"], $auth["id"], $auth["name"], $auth["realname"], $auth["email"]));
 					}
 				}
 				break;
@@ -273,7 +274,7 @@ class SocialLogin extends SpecialPage {
 				$pass1 = $wgRequest->getText('pass');
 				$pass2 = $wgRequest->getText('pass_confirm');
 				$auth = call_user_func(array(str_replace(".", "_", $service), "check"), $id);
-				if (!$auth) $wgOut->addHTML(wfMsg('sl-hacking'));
+				if (!$auth) { $wgOut->addHTML(wfMsg('sl-hacking')); return true; }
 				else {
 					$error = "";
 					if (!$service) $error .= "<li>" . wfMsg('sl-missing-param', 'service') . "</li>";
@@ -287,7 +288,16 @@ class SocialLogin extends SpecialPage {
 					if ($pass1 != $pass2) $error .= "<li>" . wfMsg('sl-passwords-not-equal') . "</li>";
 					if ($error) {
 						$wgOut->addHTML("<ul class='error'>$error</ul>");
-						$wgOut->addHTML(wfMsg('sl-sign-forms', $access_token, $service, $id, $name, $realname, $email));
+						$signFormsTpl = new SocialLoginSignFormsTpl();
+						$signFormsTpl->set('auth', array(
+							"service" => $service,
+							"id" => $id,
+							"name" => $name,
+							"realname" => $realname,
+							"email" => $email
+						));
+						$wgOut->addTemplate($signFormsTpl);
+						//$wgOut->addHTML(wfMsg('sl-sign-forms', $access_token, $service, $id, $name, $realname, $email));
 					} else {
 						$newUser = User::createNew($name, array(
 							'email' => $email,
@@ -317,7 +327,7 @@ class SocialLogin extends SpecialPage {
 				$name = $wgContLang->ucfirst($wgRequest->getText('name'));
 				$pass = $wgRequest->getText('pass');
 				$auth = call_user_func(array(str_replace(".", "_", $service), "check"), $id );
-				if (!$auth) $wgOut->addHTML(wfMsg('sl-hacking'));
+				if (!$auth) { $wgOut->addHTML(wfMsg('sl-hacking')); return true; }
 				else {
 					$error = "";
 					if (!$service) $error .= "<li>" . wfMsg('sl-missing-param', 'service') . "</li>";
@@ -328,7 +338,16 @@ class SocialLogin extends SpecialPage {
 					if (!$newUser->isValidPassword($pass)) $error .= "<li>" . wfMsg('sl-invalid-password') . "</li>";
 					if ($error) {
 						$wgOut->addHTML("<ul class='error'>$error</ul>");
-						$wgOut->addHTML(wfMsg('sl-sign-forms', $access_token, $service, $id, $name, '', ''));
+						$signFormsTpl = new SocialLoginSignFormsTpl();
+						$signFormsTpl->set('auth', array(
+							"service" => $service,
+							"id" => $id,
+							"name" => $name,
+							"realname" => '',
+							"email" => ''
+						));
+						$wgOut->addTemplate($signFormsTpl);
+						//$wgOut->addHTML(wfMsg('sl-sign-forms', $access_token, $service, $id, $name, '', ''));
 					} else {
 						$user->setId($newUser->getId());
 						$user->loadFromId();
@@ -340,8 +359,10 @@ class SocialLogin extends SpecialPage {
 							"profile" => $auth["profile"],
 							"full_name" => $auth["realname"]
 						));
+						$_SESSION['sl_msg'] = wfMsg('sl-account-connected', $auth["realname"], $wgSocialLoginServices[$service]);
 						wfRunHooks('UserLoginComplete', array(&$user, $this));
-						$wgOut->addHTML(wfMsg('sl-account-connected', $auth["realname"], $wgSocialLoginServices[$service]));
+						$wgOut->redirect(SpecialPage::getTitleFor('SocialLogin')->getLocalUrl());
+						//$wgOut->addHTML(wfMsg('sl-account-connected', $auth["realname"], $wgSocialLoginServices[$service]));
 					}
 				}
 				break;
@@ -366,6 +387,10 @@ class SocialLogin extends SpecialPage {
 	function execute( $par ) {
 		global $wgRequest, $wgOut, $wgUser;
 		$this->loginForm->load();
+		if (isset($_SESSION['sl_msg'])) {
+			$wgOut->addHTML($_SESSION['sl_msg']);
+			unset($_SESSION['sl_msg']);
+		}
 		$wgOut->addHeadItem('SocialLogin buttons styles', "<link type='text/css' href='/extensions/SocialLogin/css/style.css' rel='stylesheet' />");
 		$this->setHeaders();
 	}

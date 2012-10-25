@@ -5,22 +5,35 @@ $wgExtensionCredits['specialpage'][] = array(
         'author' => 'Luft-on',
         'url' => 'http://www.mediawiki.org/wiki/Extension:SocialLogin',
         'descriptionmsg' => 'sl-desc',
-        'version' => '0.9.8',
+        'version' => '0.9.9',
 );
  
 $dir = dirname(__FILE__) . '/';
  
 global $wgSocialLoginServices;
 
-$wgAutoloadClasses['SocialLogin'] = $dir . 'SocialLogin.body.php'; # Попросите MediaWiki загрузить тело основного файла.
+// Main SpecialPage class
+$wgAutoloadClasses['SocialLogin'] = $dir . 'SocialLogin.body.php';
+// Plugins classes
 foreach ($wgSocialLoginServices as $key => $value) {
 	$name = str_replace('.', '_', $key);
 	$wgAutoloadClasses[$name] = $dir . "/plugins/$key.php";
 }
+// Buttons template class
+$wgAutoloadClasses['SocialLoginButtonsTpl'] = $dir . '/templates/SocialLoginButtonsTpl.php';
+// Signin/signup forms to connect accounts template class
+$wgAutoloadClasses['SocialLoginSignFormsTpl'] = $dir . '/templates/SocialLoginSignFormsTpl.php';
+// Signin/signup forms under SocialLogin page template class
+$wgAutoloadClasses['SocialLoginLoginRegisterTpl'] = $dir . '/templates/SocialLoginLoginRegisterTpl.php';
+// Handle replacement of Login / Register link
 $wgHooks['PersonalUrls'][] = 'SocialLogin::onPersonalUrls';
-$wgExtensionMessagesFiles['sociallogin'] = $dir . 'SocialLogin.i18n.php';
-$wgExtensionAliasesFiles['sociallogin'] = $dir . 'SocialLogin.alias.php';
-$wgSpecialPages['sociallogin'] = 'SocialLogin';
+// Add i18n messages file
+$wgExtensionMessagesFiles['SocialLogin'] = $dir . 'SocialLogin.i18n.php';
+// Add aliases file
+$wgExtensionAliasesFiles['SocialLogin'] = $dir . 'SocialLogin.alias.php';
+// Register special page
+$wgSpecialPages['SocialLogin'] = 'SocialLogin';
+$wgSpecialPageGroups['SocialLogin'] = 'login';
 
 # Schema updates for update.php
 $wgHooks['LoadExtensionSchemaUpdates'][] = 'socialLoginUpdate';
