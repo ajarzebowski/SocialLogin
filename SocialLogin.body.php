@@ -385,13 +385,13 @@ class SocialLogin extends SpecialPage {
 	}
 
 	function execute( $par ) {
-		global $wgRequest, $wgOut, $wgUser;
+		global $wgRequest, $wgOut, $wgUser, $wgScriptPath;
 		$this->loginForm->load();
 		if (isset($_SESSION['sl_msg'])) {
 			$wgOut->addHTML($_SESSION['sl_msg']);
 			unset($_SESSION['sl_msg']);
 		}
-		$wgOut->addHeadItem('SocialLogin buttons styles', "<link type='text/css' href='/extensions/SocialLogin/css/style.css' rel='stylesheet' />");
+		$wgOut->addHeadItem('SocialLogin buttons styles', "<link type='text/css' href='$wgScriptPath/extensions/SocialLogin/css/style.css' rel='stylesheet' />");
 		$this->setHeaders();
 	}
 }
