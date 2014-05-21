@@ -30,6 +30,36 @@ $messages['en'] = array(
 	'sl-missing-param' => 'Hidden parameter $1 is missing. It is necessary to identify you.',
 );
 
+$messages['ko'] = array( 
+	'sociallogin' => '소셜 로그인',
+	'sl-login' => '로그인',
+	'sl-realname' => '실명',
+	'sl-email' => '이메일',
+	'sl-password' => '패스워드',
+	'sl-password-confirm' => '확인',
+	'sl-create' => '생성',
+	'sl-connect' => '접속',
+	'sl-register' => '등록',
+	'sl-enter' => '로그인',
+	'sl-signforms-account' => '이미 계정이 있고 선택한 서비스 계정과 연결하시려면, 아래의 로그인 양식을 입력해주세요.',
+	'sl-signforms-no-account' => '계정이 없다면, 아래의 등록 양식을 입력해주세요.',
+	'sl-account' => '이미 계정이 있다면, 아래의 로그인 양식을 입력해주세요.',
+	'sl-no-account' => '계정이 없다면, 아래의 등록 양식을 입력해주세요.',
+    'sl-desc' => 'Facebook, VK, Google 등 OAuth 2.0 프로토콜을 사용하는 소셜 네트워크를 통해 로그인할 수 있도록 합니다.',
+    'sl-unlink' => '언링크',
+	'sl-login-success' => '로그인 성공.',
+	'sl-account-connected' => '당신의 계정은 $2의 계정 «$1»로 연결되었습니다.',
+	'sl-hacking' => '뭔가 잘못되었거나 엉뚱한 계정으로 시도하고 있습니다.',
+	'sl-invalid-password' => '잘못된 패스워드.',
+	'sl-passwords-not-equal' => '패스워드가 일치하지 않습니다.',
+	'sl-user-exist' => '로그인 $1 은 이미 있습니다.',
+	'sl-email-exist' => '이메일 $1 은 이미 있습니다.',
+	'sl-user-not-exist' => '사용자 $1 은 존재하지 않습니다.',
+	'sl-invalid-name' => '잘못된 로그인 $1.',
+	'sl-invalid-email' => '잘못된 이메일 $1.',
+	'sl-missing-param' => '사용자 식별에 필요한 숨은 파라미터 $1 이 누락되었습니다.',
+);
+
 $messages['ru'] = array( 
 	'sociallogin' => 'Социальная авторизация',
 	'sl-login' => 'Логин',
